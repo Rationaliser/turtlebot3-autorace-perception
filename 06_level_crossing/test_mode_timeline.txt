@@ -1,0 +1,5 @@
+Normal-mode test at 0.525 m from barrier (barrier toggles every 10 s):
+    0.0-  6.5s  (no log: <3 blobs -> node returns go silently; barrier open)
+    6.5- 16.4s  slowdown (150 msgs)
+   16.4- 26.5s  (no log: <3 blobs -> node returns go silently; barrier open)
+   26.5- 31.0s  slowdown (68 msgs)

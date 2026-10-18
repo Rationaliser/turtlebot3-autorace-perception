@@ -1,0 +1,42 @@
+diff --git a/turtlebot3_autorace_detect/param/level/level.yaml b/turtlebot3_autorace_detect/param/level/level.yaml
+index 12ba414..93162cf 100755
+--- a/turtlebot3_autorace_detect/param/level/level.yaml
++++ b/turtlebot3_autorace_detect/param/level/level.yaml
+@@ -1,10 +1,14 @@
+----
+-/detect_level:
+-    ros__parameters:
+-      red:
+-        hue_l: 0
+-        hue_h: 22
+-        saturation_l: 173
+-        saturation_h: 255
+-        lightness_l: 106
+-        lightness_h: 255
++# Node is launched as /detect_level_crossing and declares detect.level.red.* parameters,
++# so the YAML must use that node name and nesting (the original /detect_level + red.* never loaded).
++# Thresholds tuned on the Gazebo barrier: red stripes measured at H 0-1, S ~232 (1st pct 150), V ~210 (1st pct 165).
++/detect_level_crossing:
++  ros__parameters:
++    detect:
++      level:
++        red:
++          hue_l: 0
++          hue_h: 10
++          saturation_l: 140
++          saturation_h: 255
++          lightness_l: 120
++          lightness_h: 255
+diff --git a/turtlebot3_autorace_detect/turtlebot3_autorace_detect/detect_parking_sign.py b/turtlebot3_autorace_detect/turtlebot3_autorace_detect/detect_parking_sign.py
+index ca49b7c..335ae8b 100755
+--- a/turtlebot3_autorace_detect/turtlebot3_autorace_detect/detect_parking_sign.py
++++ b/turtlebot3_autorace_detect/turtlebot3_autorace_detect/detect_parking_sign.py
+@@ -116,7 +116,7 @@ class DetectSign(Node):
+         elif self.sub_image_type == 'raw':
+             cv_image_input = self.cvBridge.imgmsg_to_cv2(image_msg, 'bgr8')
+ 
+-        MIN_MATCH_COUNT = 9
++        MIN_MATCH_COUNT = 4  # was 9: sign is only ~20-40 px in the 320x240 sim camera; 4 separates parking (2-7 matches) from other views (<=3)
+         MIN_MSE_DECISION = 50000
+ 
+         # find the keypoints and descriptors with SIFT

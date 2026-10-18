@@ -1,0 +1,10 @@
+d=0.600 m  closed->go:5  closed->none:15  open->go:20
+d=0.550 m  closed->slowdown:20  open->go:19
+d=0.525 m  closed->slowdown:20  open->go:20
+d=0.500 m  closed->slowdown:20  open->go:20
+d=0.475 m  closed->none:16  closed->slowdown:4  open->go:11  open->none:8
+d=0.450 m  closed->none:21  open->go:19
+d=0.425 m  closed->none:19  open->go:3  open->none:18
+d=0.400 m  closed->none:19  open->go:16  open->none:4
+d=0.350 m  closed->none:19  open->go:21
+d=0.300 m  closed->none:19  open->go:21

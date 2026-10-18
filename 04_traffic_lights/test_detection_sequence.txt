@@ -1,0 +1,7 @@
+      3 red light detected
+     10 yellow light detected
+     52 green light detected
+     50 red light detected
+     10 yellow light detected
+     50 green light detected
+     48 red light detected
