@@ -10,10 +10,31 @@ Two bugs in the upstream detectors were found and fixed along the way (see [patc
 
 ## Quick start
 
+Requires Ubuntu 22.04 with ROS 2 Humble and Gazebo 11.
+
 ```bash
-./setup.sh                      # installs deps, clones ROBOTIS packages at the tested commits, applies patches, builds
-ros2 launch turtlebot3_gazebo turtlebot3_autorace_2020.launch.py
+git clone https://github.com/Rationaliser/turtlebot3-autorace-perception.git
+cd turtlebot3-autorace-perception
+./setup.sh            # one time: installs deps, clones ROBOTIS packages at the tested commits, applies patches, builds
+./run.sh lane         # launch the simulation; Ctrl+C stops everything
 ```
+
+`run.sh` starts Gazebo, waits for the camera, starts the camera calibration pipeline and then the nodes for the chosen mode,
+placing the robot where the scenario begins:
+
+| Command | What runs |
+|---|---|
+| `./run.sh` | World + camera pipeline only |
+| `./run.sh lane` | Lane detection + lane following around the course |
+| `./run.sh signs intersection` | Sign detection (`intersection`, `construction`, `parking`, `level_crossing`, `tunnel`); drive with teleop |
+| `./run.sh traffic_light` | Traffic-light detection from the start line |
+| `./run.sh construction` | Lane following + LiDAR obstacle avoidance through the construction zone |
+| `./run.sh level_crossing` | Barrier detection in front of the level crossing |
+| `./run.sh tunnel` | Nav2 + AMCL navigation through the tunnel (RViz) |
+| `./run.sh teleop` | Drive the robot yourself |
+
+Add `--rqt` to any mode to open an image viewer on its output topic. Logs are written to `logs/<mode>/`.
+Use `TB3_WS=/path/to/ws ./run.sh ...` if the workspace is not `~/turtlebot3_ws`.
 
 ## Repository layout
 
@@ -23,6 +44,7 @@ ros2 launch turtlebot3_gazebo turtlebot3_autorace_2020.launch.py
 | `tools/` | Measurement scripts (frame capture, run logger, projection tuner, sign tester, reference selector, level-crossing sweep) |
 | `patches/turtlebot3_autorace.patch` | Fixes applied to `ROBOTIS-GIT/turtlebot3_autorace` |
 | `setup.sh` | Reproducible workspace setup |
+| `run.sh` | One-command launcher for every scenario |
 
 ## Summary
 
