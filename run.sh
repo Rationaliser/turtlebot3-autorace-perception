@@ -11,6 +11,9 @@
 #   construction     construction mission: lane following + LiDAR obstacle avoidance
 #   level_crossing   level-crossing (barrier) detection, robot placed in front of the barrier
 #   tunnel           tunnel mission: Nav2 + AMCL through the tunnel (opens RViz)
+#   tour             the whole course start to finish: traffic light, intersection, construction,
+#                    parking, level crossing, tunnel - each task's window opens as the robot arrives
+#                    (--from TASK starts the tour at that task instead of the start line)
 #   teleop           drive the robot yourself with the keyboard
 #   stop             stop a simulation that is still running (e.g. after a closed terminal)
 #
@@ -27,7 +30,7 @@ WS=${TB3_WS:-$HOME/turtlebot3_ws}
 MODE=sim
 case "${1:-}" in -*|"") ;; *) MODE=$1; shift ;; esac
 case "$MODE" in
-  sim|lane|signs|traffic_light|construction|level_crossing|tunnel|teleop|stop) ;;
+  sim|lane|signs|traffic_light|construction|level_crossing|tunnel|tour|teleop|stop) ;;
   help) set -- --help ;;
   *) echo "Unknown mode '$MODE'. Run ./run.sh --help"; exit 1 ;;
 esac
@@ -38,13 +41,21 @@ if [ "$MODE" = "signs" ]; then
     *) echo "Unknown sign mission '$MISSION'. Use intersection, construction, parking, level_crossing or tunnel."; exit 1 ;; esac
 fi
 VIEW_ON=1
-for a in "$@"; do
-  case "$a" in
-    -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+TOUR_FROM=traffic_light
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     --no-view) VIEW_ON=0 ;;
     --rqt) ;;  # the camera window now opens by default; kept so old commands still work
-    *) echo "Unknown option '$a'. Run ./run.sh --help"; exit 1 ;;
+    --from)
+      [ "$MODE" = "tour" ] || { echo "--from only works with: ./run.sh tour --from TASK"; exit 1; }
+      TOUR_FROM=${2:-}
+      case "$TOUR_FROM" in traffic_light|intersection|construction|parking|level_crossing|tunnel) ;;
+        *) echo "Unknown task '$TOUR_FROM'. Use traffic_light, intersection, construction, parking, level_crossing or tunnel."; exit 1 ;; esac
+      shift ;;
+    *) echo "Unknown option '$1'. Run ./run.sh --help"; exit 1 ;;
   esac
+  shift
 done
 
 # Everything a run may leave behind, matched on the program a process runs (and, for Python, the
@@ -59,6 +70,7 @@ sim_pids() {
     index($2, ws) == 1 || ($2 ~ /python3(\.[0-9]+)?$/ && index($3, ws) == 1) { print $1; next }
     $2 ~ /^\/opt\/ros\/[^\/]+\/lib\/(rqt_image_view|rviz2|image_transport|rclcpp_components|robot_state_publisher|gazebo_ros|nav2_[^\/]*|turtlebot3_[^\/]*)\// { print $1; next }
     $2 ~ /python3(\.[0-9]+)?$/ && $3 ~ /^\/opt\/ros\/[^\/]+\/lib\/(rqt_image_view|gazebo_ros|turtlebot3_[^\/]*)\// { print $1; next }
+    $2 ~ /python3(\.[0-9]+)?$/ && $3 ~ /\/tools\/tour\.py$/ { print $1; next }
   '
 }
 stop_everything() {
@@ -96,6 +108,7 @@ fi
 
 LOG=$HERE/logs/$MODE${MISSION:+_$MISSION}
 mkdir -p "$LOG"
+rm -f "$LOG"/*.log   # keep only this run's logs
 PIDS=()
 
 start() {  # name, command...
@@ -108,6 +121,10 @@ start() {  # name, command...
 cleanup() {
   trap - INT TERM EXIT
   echo; echo "Shutting down..."
+  if [ -n "${TOUR_PID:-}" ]; then
+    kill -TERM "$TOUR_PID" 2>/dev/null
+    for _ in $(seq 1 30); do kill -0 "$TOUR_PID" 2>/dev/null || break; sleep 0.5; done
+  fi
   for ((i=${#PIDS[@]}-1; i>=0; i--)); do kill -INT -- -"${PIDS[i]}" 2>/dev/null; done
   for _ in $(seq 1 20); do sleep 0.5; [ -z "$(sim_pids)" ] && break; done
   for p in "${PIDS[@]}"; do kill -KILL -- -"$p" 2>/dev/null; done
@@ -155,8 +172,17 @@ case "$MODE" in
     start control_lane ros2 launch turtlebot3_autorace_mission control_lane.launch.py
     VIEW=/detect/image_lane/compressed ;;
   signs)
+    # start in front of the mission's sign, at a pose where it was recognised in tools/test_signs.py
+    case "$MISSION" in
+      intersection)   place_robot 1.774 -1.473 1.593 ;;   # intersection sign 0.50 m ahead
+      construction)   place_robot 0.70 0.27 -0.654
+                      echo "  note: the construction sign is too small for SIFT at this camera resolution and is rarely recognised" ;;
+      parking)        place_robot 1.144 1.750 3.120 ;;    # parking sign 0.45 m ahead
+      level_crossing) place_robot -1.598 1.257 -0.284 ;;  # stop sign 0.33 m ahead
+      tunnel)         place_robot -1.768 0.441 -1.517 ;;  # tunnel sign 0.49 m ahead
+    esac
     start detect_sign ros2 launch turtlebot3_autorace_detect detect_sign.launch.py mission:="$MISSION"
-    echo "  drive the robot to the signs in a second terminal with:  ros2 run turtlebot3_teleop teleop_keyboard"
+    echo "  to look at other signs, drive in a second terminal with:  ros2 run turtlebot3_teleop teleop_keyboard"
     VIEW=/detect/image_traffic_sign/compressed ;;
   traffic_light)
     place_robot 0.8 -1.747 0.0
@@ -174,6 +200,10 @@ case "$MODE" in
     # map (0,0,0) of turtlebot3_autorace_mission/map corresponds to world (-1.53,-0.28,0)
     place_robot -1.53 -0.28 0.0
     start mission_tunnel ros2 launch turtlebot3_autorace_mission mission_tunnel.launch.py ;;
+  tour)
+    echo
+    python3 "$HERE/tools/tour.py" "$LOG" "$TOUR_FROM" &
+    TOUR_PID=$! ;;
   teleop)
     echo "  Use the keys below to drive. Ctrl+C here stops everything."
     ros2 run turtlebot3_teleop teleop_keyboard
@@ -196,6 +226,9 @@ GUI_RESTARTS=0
 while true; do
   sleep 2
   pgrep -x gzserver >/dev/null || { echo "Gazebo exited."; exit 0; }
+  if [ -n "${TOUR_PID:-}" ] && ! kill -0 "$TOUR_PID" 2>/dev/null; then
+    echo "The tour stopped (see $LOG)."; exit 0
+  fi
   # The Gazebo window (gzclient) sometimes crashes on its own; the simulation keeps running, so reopen it.
   if ! pgrep -x gzclient >/dev/null && [ $GUI_RESTARTS -lt 3 ]; then
     GUI_RESTARTS=$((GUI_RESTARTS+1))

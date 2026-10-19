@@ -16,17 +16,41 @@ Requires Ubuntu 22.04 with ROS 2 Humble and Gazebo 11.
 git clone https://github.com/Rationaliser/turtlebot3-autorace-perception.git
 cd turtlebot3-autorace-perception
 ./setup.sh            # one time: installs deps, clones ROBOTIS packages at the tested commits, applies patches, builds
-./run.sh lane         # launch the simulation; Ctrl+C stops everything
+./run.sh tour         # the whole course, start line to tunnel exit (~10 min); Ctrl+C stops everything
 ```
+
+### The full tour
+
+`./run.sh tour` drives the robot through every task in course order. When it reaches a task, that task's detector
+starts and a window opens with what the camera sees and detects; between tasks it follows the lanes.
+
+| # | Task | What happens | Window |
+|---|---|---|---|
+| 1 | Traffic light | Waits on the start line until the light goes red → green | Light colour on the camera view |
+| 2 | Intersection | Recognises the intersection, left and right signs while driving | SIFT matches to the reference sign |
+| 3 | Construction | LiDAR spots blocks in the lane and the robot swerves around them | Sign view + LiDAR danger zone |
+| 4 | Parking | Recognises the parking sign | SIFT matches |
+| 5 | Level crossing | Pauses at the stop sign, stops 0.53 m before the barrier, waits for it to open | Stop sign, then barrier detector |
+| 6 | Tunnel | Pauses at the tunnel sign, then Nav2 drives through the tunnel | Sign view, then RViz |
+
+The terminal reports each detection and prints a summary at the end. `./run.sh tour --from level_crossing` (or any
+task name) starts at that task instead of the start line.
+Where a detector only works from a narrow range (the barrier at 0.50–0.55 m, the stop and tunnel signs from
+particular angles) the robot is lined up on a tested pose by a few centimetres, and it is placed on the tunnel map's
+start pose for Nav2; the terminal says so each time. If the robot gets stuck for 25 s it is moved 0.3 m along the
+course and the summary reports it.
+
+### Single tasks
 
 `run.sh` starts Gazebo, waits for the camera, starts the camera calibration pipeline and then the nodes for the chosen mode,
 placing the robot where the scenario begins:
 
 | Command | What runs |
 |---|---|
+| `./run.sh tour` | Every task in order, start to finish (above) |
 | `./run.sh` | World + camera pipeline only |
 | `./run.sh lane` | Lane detection + lane following around the course |
-| `./run.sh signs intersection` | Sign detection (`intersection`, `construction`, `parking`, `level_crossing`, `tunnel`); drive with teleop |
+| `./run.sh signs intersection` | Sign detection in front of that mission's sign (`intersection`, `construction`, `parking`, `level_crossing`, `tunnel`) |
 | `./run.sh traffic_light` | Traffic-light detection from the start line |
 | `./run.sh construction` | Lane following + LiDAR obstacle avoidance through the construction zone |
 | `./run.sh level_crossing` | Barrier detection in front of the level crossing |
@@ -44,7 +68,7 @@ Use `TB3_WS=/path/to/ws ./run.sh ...` if the workspace is not `~/turtlebot3_ws`.
 | Path | Contents |
 |---|---|
 | `01_camera_calibration/` … `07_tunnel/` | Screenshots, CSV logs and results for each tutorial stage |
-| `tools/` | Measurement scripts (frame capture, run logger, projection tuner, sign tester, reference selector, level-crossing sweep) |
+| `tools/` | `tour.py` (full-course tour) and measurement scripts (frame capture, run logger, projection tuner, sign tester, reference selector, level-crossing sweep) |
 | `patches/turtlebot3_autorace.patch` | Fixes applied to `ROBOTIS-GIT/turtlebot3_autorace` |
 | `setup.sh` | Reproducible workspace setup |
 | `run.sh` | One-command launcher for every scenario |
