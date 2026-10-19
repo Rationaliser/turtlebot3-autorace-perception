@@ -32,8 +32,11 @@ placing the robot where the scenario begins:
 | `./run.sh level_crossing` | Barrier detection in front of the level crossing |
 | `./run.sh tunnel` | Nav2 + AMCL navigation through the tunnel (RViz) |
 | `./run.sh teleop` | Drive the robot yourself |
+| `./run.sh stop` | Stop a simulation left running (e.g. after closing its terminal) |
 
-Add `--rqt` to any mode to open an image viewer on its output topic. Logs are written to `logs/<mode>/`.
+Camera modes (`sim`, `lane`, `signs`, `traffic_light`, `construction`, `level_crossing`) open a window showing what the
+robot's camera sees with the detections drawn on it; add `--no-view` to skip it. If the Gazebo window crashes, `run.sh`
+reopens it while the simulation keeps running. Logs are written to `logs/<mode>/`.
 Use `TB3_WS=/path/to/ws ./run.sh ...` if the workspace is not `~/turtlebot3_ws`.
 
 ## Repository layout
